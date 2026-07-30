@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CourseVault</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+  body { font-family: -apple-system, sans-serif; background:#0e0e10; color:#f2f2f2; margin:0; padding:0; }
+  header { padding: 30px 20px; text-align:center; }
+  header h1 { font-size: 28px; margin:0; letter-spacing: 1px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:16px; padding:20px; }
+  .card { background:#1a1a1d; border-radius:12px; padding:16px; }
+  .card img { width:100%; border-radius:8px; margin-bottom:10px; }
+  .card h3 { margin:0 0 6px; font-size:16px; }
+  .card p { font-size:13px; color:#aaa; margin:0 0 10px; }
+  .price { font-weight:bold; color:#fff; margin-bottom:10px; }
+  button { width:100%; padding:10px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-weight:600; }
+  .reviews { padding:20px; }
+  .review { background:#1a1a1d; border-radius:10px; padding:14px; margin-bottom:10px; }
+  .stars { color:#facc15; }
+</style>
+</head>
+<body>
+<header><h1>CourseVault</h1><p>Practical courses. Real results.</p></header>
+<div id="products" class="grid">Loading...</div>
+<div class="reviews"><h2>What buyers say</h2><div id="reviews-list"></div></div>
+
+<script>
+const supabaseUrl = "YOUR_SUPABASE_URL";
+const supabaseKey = "YOUR_SUPABASE_ANON_KEY";
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+const PAYSTACK_PUBLIC_KEY = "YOUR_PAYSTACK_PUBLIC_KEY";
+
+async function loadProducts() {
+  const { data, error } = await supabase.from('products').select('*').order('created_at', {ascending:false});
+  const grid = document.getElementById('products');
+  if (error || !data || data.length === 0) { grid.innerHTML = "<p>No courses yet.</p>"; return; }
+  grid.innerHTML = data.map(p => `
+    <div class="card">
+      <img src="${p.cover_url}" />
+      <h3>${p.title}</h3>
+      <p>${p.description}</p>
+      <div class="price">₦${p.price}</div>
+      <button onclick="buy('${p.id}','${p.title}',${p.price},'${p.pdf_url}')">Buy Now</button>
+    </div>`).join('');
+}
+
+async function loadReviews() {
+  const { data } = await supabase.from('reviews').select('*').order('created_at', {ascending:false});
+  document.getElementById('reviews-list').innerHTML = (data||[]).map(r => `
+    <div class="review"><div class="stars">${'★'.repeat(r.rating)}</div><p>${r.comment}</p><small>— ${r.name}</small></div>`).join('');
+}
+
+function buy(id, title, price, pdfUrl) {
+  const email = prompt("Enter your email for the receipt & download link:");
+  if (!email) return;
+  const handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: email,
+    amount: price * 100,
+    currency: "NGN",
+    metadata: { product_id: id, title: title },
+    callback: function(response) {
+      alert("Payment successful! Your download: " + pdfUrl);
+      window.open(pdfUrl, '_blank');
+    },
+    onClose: function() {}
+  });
+  handler.openIframe();
+}
+
+loadProducts();
+loadReviews();
+</script>
+</body>
+  </html>
